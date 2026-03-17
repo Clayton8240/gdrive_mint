@@ -14,11 +14,13 @@ class LoginScreen(ctk.CTkFrame):
     Abre o navegador para o fluxo OAuth 2.0.
     """
 
-    def __init__(self, parent, theme: ThemeManager, auth_service, on_login_success, **kwargs):
+    def __init__(self, parent, theme: ThemeManager, auth_service, on_login_success,
+                 on_need_setup=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         self.theme = theme
         self.auth = auth_service
         self.on_login_success = on_login_success
+        self.on_need_setup = on_need_setup
         self._build()
 
     def _build(self) -> None:
@@ -94,13 +96,28 @@ class LoginScreen(ctk.CTkFrame):
         self._progress.set(0)
 
         # Rodapé
+        footer = ctk.CTkFrame(card, fg_color="transparent")
+        footer.pack(side="bottom", pady=16)
+
         ctk.CTkLabel(
-            card,
+            footer,
             text="Seus dados são armazenados localmente.\nNenhum dado é enviado a terceiros.",
             font=self.theme.font(10),
             text_color=self.theme.c("text_muted"),
             justify="center",
-        ).pack(side="bottom", pady=20)
+        ).pack()
+
+        if self.on_need_setup:
+            ctk.CTkButton(
+                footer,
+                text="Reconfigurar credenciais",
+                font=self.theme.font(10),
+                fg_color="transparent",
+                hover_color=self.theme.c("bg_primary"),
+                text_color=self.theme.c("text_muted"),
+                height=24,
+                command=self.on_need_setup,
+            ).pack(pady=(6, 0))
 
     def _start_login(self) -> None:
         """Inicia o fluxo de autenticação."""
@@ -145,3 +162,10 @@ class LoginScreen(ctk.CTkFrame):
             text_color=self.theme.c("accent_danger"),
         )
         self._login_btn.configure(state="normal", text="  Tentar novamente")
+        # Se credentials.json não existe, oferece acesso direto ao assistente
+        if self.on_need_setup and "credentials.json" in error:
+            self._login_btn.configure(
+                text="  Configurar agora",
+                command=self.on_need_setup,
+                state="normal",
+            )

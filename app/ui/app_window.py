@@ -19,6 +19,7 @@ from app.ui.screens.folders_screen import FoldersScreen
 from app.ui.screens.login_screen import LoginScreen
 from app.ui.screens.logs_screen import LogsScreen
 from app.ui.screens.settings_screen import SettingsScreen
+from app.ui.screens.setup_wizard_screen import SetupWizardScreen
 from app.ui.theme import ThemeManager
 from app.utils.config_manager import ConfigManager
 from app.utils.crypto import CryptoManager
@@ -176,8 +177,26 @@ class AppWindow(ctk.CTk):
         """Tenta login silencioso sem abrir navegador."""
         if self.auth.try_silent_login():
             self._post_login(self.auth.user_email)
+        elif not self.auth.credentials_file.exists():
+            # Primeira execução (ou credentials.json removido): exibe o assistente
+            self._show_setup_wizard()
         else:
             self._show_login()
+
+    def _show_setup_wizard(self) -> None:
+        """Exibe o assistente de configuração (primeira execução)."""
+        self._hide_sidebar()
+        if self._current_screen:
+            self._current_screen.grid_remove()
+
+        wizard = SetupWizardScreen(
+            self._main_frame,
+            self.theme_mgr,
+            self.auth,
+            on_setup_complete=self._post_login,
+        )
+        wizard.grid(row=0, column=0, sticky="nsew")
+        self._current_screen = wizard
 
     def _show_login(self) -> None:
         """Exibe a tela de login."""
@@ -186,8 +205,11 @@ class AppWindow(ctk.CTk):
             self._current_screen.grid_remove()
 
         login_screen = LoginScreen(
-            self._main_frame, self.theme_mgr, self.auth,
+            self._main_frame,
+            self.theme_mgr,
+            self.auth,
             on_login_success=self._post_login,
+            on_need_setup=self._show_setup_wizard,
         )
         login_screen.grid(row=0, column=0, sticky="nsew")
         self._current_screen = login_screen
