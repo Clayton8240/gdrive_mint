@@ -21,7 +21,7 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # ── Configurações do pacote ────────────────────────────────────────────────
 PKG_NAME="gdrive-mint"
-VERSION="1.1.0"
+VERSION="1.2.0"
 ARCH="amd64"
 MAINTAINER="Clayton <https://github.com/Clayton8240>"
 HOMEPAGE="https://github.com/Clayton8240/gdrive_mint"

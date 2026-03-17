@@ -14,6 +14,18 @@ aderindo ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.2.0] — 2026-03-17
+
+### Adicionado
+- **Assistente de configuração OAuth** (`setup_wizard_screen.py`): na primeira execução (quando `credentials.json` não existe), o app exibe automaticamente um wizard guiado de 3 etapas:
+  1. Boas-vindas com duas opções: importar o arquivo existente ou seguir o guia passo a passo.
+  2. Guia interativo com botões que abrem diretamente o Google Cloud Console, a ativação da API do Drive e a criação das credenciais OAuth.
+  3. Importação segura do arquivo (validação de conteúdo + `chmod 600`) e preview da tela de permissão do Google antes de autorizar.
+- **Detecção automática na inicialização** (`app_window.py`): se `credentials.json` estiver ausente, o wizard abre antes da tela de login normalmente.
+- **Link "Reconfigurar credenciais"** na tela de login (`login_screen.py`): permite acessar o wizard a qualquer momento. Em caso de erro por arquivo ausente, o botão muda automaticamente para "Configurar agora".
+
+---
+
 ## [1.1.0] — 2026-03-17
 
 ### Segurança — Auditoria completa de código-fonte
