@@ -1,6 +1,14 @@
 """
-Motor principal de sincronização.
-Orquestra upload, download, monitoramento e resolução de conflitos.
+Motor principal de sincronizacao.
+Orquestra upload, download, monitoramento e resolucao de conflitos.
+
+Auditoria de seguranca aplicada:
+- Path Traversal bloqueado: nomes de arquivo do Drive sao sanitizados
+  (Path(name).name + verificacao que o resultado esta dentro do diretorio alvo)
+- Symlinks ignorados no upload (evita vazar /etc/shadow ou similar)
+- Contadores de sessao protegidos por lock (evita race conditions)
+- sync_mode validado contra allowlist
+- Limite de tamanho no download (512 MB por arquivo como padrao)
 """
 
 import hashlib
@@ -20,6 +28,12 @@ from app.utils.notifications import NotificationManager
 
 # Callback de status: (message, level)
 StatusCallback = Callable[[str, str], None]
+
+# Modos de sincronizacao permitidos (allowlist)
+_VALID_SYNC_MODES = frozenset({"bidirectional", "upload", "download"})
+
+# Limite padrao de tamanho de arquivo para download: 512 MB
+_MAX_DOWNLOAD_SIZE = 512 * 1024 * 1024
 
 
 class SyncEngine:
@@ -55,7 +69,8 @@ class SyncEngine:
         # FileWatcher é inicializado sem pastas; adicionadas via update_folders()
         self.watcher = FileWatcher(callback=self._on_file_changed)
 
-        # Contadores de sessão
+        # Contadores de sessao protegidos por lock (multiplos threads)
+        self._counter_lock = threading.Lock()
         self.uploaded_count = 0
         self.downloaded_count = 0
         self.error_count = 0
@@ -144,7 +159,14 @@ class SyncEngine:
                 break
 
             folder_path = folder_cfg["path"]
-            sync_mode = folder_cfg.get("sync_mode", "bidirectional")
+            # Valida sync_mode contra allowlist antes de usar
+            raw_mode = folder_cfg.get("sync_mode", "bidirectional")
+            sync_mode = raw_mode if raw_mode in _VALID_SYNC_MODES else "bidirectional"
+            if raw_mode not in _VALID_SYNC_MODES:
+                self.logger.warning(
+                    f"sync_mode invalido '{raw_mode}' para '{Path(folder_path).name}'; "
+                    "usando 'bidirectional'."
+                )
 
             progress = i / total
             if progress_cb:
@@ -153,8 +175,9 @@ class SyncEngine:
             try:
                 self._sync_folder(folder_path, sync_mode)
             except Exception as e:
-                self.error_count += 1
-                self.logger.error(f"Erro ao sincronizar {folder_path}: {e}")
+                with self._counter_lock:
+                    self.error_count += 1
+                self.logger.error(f"Erro ao sincronizar {Path(folder_path).name}: {e}")
 
         self.last_sync_time = datetime.now()
         self.config.set("last_sync", self.last_sync_time.isoformat())
@@ -204,6 +227,12 @@ class SyncEngine:
             if item.name.startswith("."):
                 continue
 
+            # Ignora symlinks: seguir um link poderia expor arquivos fora
+            # da pasta de sincronizacao (ex.: link para /etc/shadow)
+            if item.is_symlink():
+                self.logger.warning(f"Symlink ignorado (seguranca): {item}")
+                continue
+
             if item.is_dir():
                 sub_id = self.drive.find_or_create_folder(item.name, drive_parent_id)
                 self._upload_folder_recursive(item, sub_id)
@@ -237,11 +266,13 @@ class SyncEngine:
                 status=FileStatus.SYNCED,
                 checksum=local_hash,
             )
-            self.uploaded_count += 1
+            with self._counter_lock:
+                self.uploaded_count += 1
             self.notifications.upload_complete(local_file.name)
         except Exception as e:
             self.state.update_status(local_path_str, FileStatus.ERROR)
-            self.error_count += 1
+            with self._counter_lock:
+                self.error_count += 1
             self.logger.error(f"Falha no upload de {local_file.name}: {e}")
 
     def _download_folder_recursive(self, drive_folder_id: str, local_dir: Path) -> None:
@@ -260,17 +291,46 @@ class SyncEngine:
             mime = remote.get("mimeType", "")
             item_id = remote["id"]
 
+            # ── PATH TRAVERSAL: sanitiza nome vindo da API do Drive ──────
+            # Path(name).name extrai apenas o componente final (sem ../ etc.)
+            safe_name = Path(name).name
+            if not safe_name or safe_name in (".", ".."):
+                self.logger.error(
+                    "[SEGURANCA] Nome de arquivo invalido bloqueado da API."
+                )
+                continue
+            # Confirma que o caminho resolvido permanece dentro de local_dir
+            candidate = (local_dir / safe_name).resolve()
+            local_dir_resolved = local_dir.resolve()
+            if not str(candidate).startswith(str(local_dir_resolved) + "/"):
+                self.logger.error(
+                    "[SEGURANCA] Path traversal bloqueado para arquivo remoto."
+                )
+                continue
+
             if mime == "application/vnd.google-apps.folder":
-                sub_dir = local_dir / name
+                sub_dir = local_dir / safe_name
                 sub_dir.mkdir(parents=True, exist_ok=True)
                 self._download_folder_recursive(item_id, sub_dir)
                 continue
 
-            # Pula Google Docs nativos (não exportáveis diretamente aqui)
+            # Pula Google Docs nativos (nao exportaveis diretamente aqui)
             if mime.startswith("application/vnd.google-apps"):
                 continue
 
-            local_file = local_dir / name
+            # Verifica limite de tamanho antes de baixar
+            try:
+                remote_size = int(remote.get("size", 0))
+            except (ValueError, TypeError):
+                remote_size = 0
+            if remote_size > _MAX_DOWNLOAD_SIZE:
+                self.logger.warning(
+                    f"Arquivo '{safe_name}' ({remote_size // (1024 * 1024)} MB) "
+                    f"excede o limite de {_MAX_DOWNLOAD_SIZE // (1024 * 1024)} MB; ignorado."
+                )
+                continue
+
+            local_file = candidate  # ja validado contra path traversal acima
             remote_hash = remote.get("md5Checksum", "")
             local_path_str = str(local_file)
 
@@ -300,12 +360,14 @@ class SyncEngine:
                     status=FileStatus.SYNCED,
                     checksum=remote_hash,
                 )
-                self.downloaded_count += 1
-                self.notifications.download_complete(name)
+                with self._counter_lock:
+                    self.downloaded_count += 1
+                self.notifications.download_complete(safe_name)
             except Exception as e:
                 self.state.update_status(local_path_str, FileStatus.ERROR)
-                self.error_count += 1
-                self.logger.error(f"Falha no download de {name}: {e}")
+                with self._counter_lock:
+                    self.error_count += 1
+                self.logger.error(f"Falha no download de {safe_name}: {e}")
 
     # ── Loop automático ────────────────────────────────────────────────────
 

@@ -1,12 +1,20 @@
 """
 Gerenciador de configurações da aplicação.
 Salva e carrega configurações em JSON com validação.
-"""
+Auditoria de seguranca aplicada:
+- config.json criado com chmod 600 (somente o dono le/escreve)
+- Escrita atomica (tempfile + os.replace) evita arquivo corrompido
+- Validacao de sync_mode ao adicionar pasta (allowlist)"""
 
 import json
+import os
+import tempfile
 import threading
 from pathlib import Path
 from typing import Any
+
+# Modos de sincronizacao validos (allowlist)
+_VALID_SYNC_MODES = frozenset({"bidirectional", "upload", "download"})
 
 
 # Configurações padrão
@@ -51,10 +59,25 @@ class ConfigManager:
             self._save()
 
     def _save(self) -> None:
-        """Salva configurações no disco (thread-safe)."""
+        """Salva configuracoes no disco com escrita atomica e permissao restrita."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.config_file, "w", encoding="utf-8") as f:
-            json.dump(self._config, f, indent=2, ensure_ascii=False)
+        content = json.dumps(self._config, indent=2, ensure_ascii=False)
+        # Escrita atomica: escreve em temp e renomeia atomicamente
+        fd, tmp_path = tempfile.mkstemp(dir=self.config_dir, prefix=".config.")
+        try:
+            os.chmod(tmp_path, 0o600)  # somente dono antes de escrever
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, self.config_file)  # atomico no POSIX
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+        os.chmod(self.config_file, 0o600)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Obtém valor de configuração."""
@@ -87,7 +110,10 @@ class ConfigManager:
         return self.get("folders", [])
 
     def add_folder(self, path: str, sync_mode: str = "bidirectional") -> bool:
-        """Adiciona pasta de sincronização. Retorna False se já existe."""
+        """Adiciona pasta de sincronizacao. Retorna False se ja existe."""
+        # Valida sync_mode contra allowlist
+        if sync_mode not in _VALID_SYNC_MODES:
+            sync_mode = "bidirectional"
         with self._lock:
             folders = self._config.get("folders", [])
             if any(f["path"] == path for f in folders):

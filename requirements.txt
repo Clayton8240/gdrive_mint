@@ -1,25 +1,27 @@
-# ── Interface gráfica ──────────────────────────────────────────────────────
+# ── Interface grafica ──────────────────────────────────────────────────────
 customtkinter>=5.2.2
-Pillow>=10.0.0
+Pillow>=10.4.0          # 10.3+ corrige varios CVEs de processamento de imagem
 
 # ── Google Drive API ───────────────────────────────────────────────────────
-google-api-python-client>=2.100.0
-google-auth>=2.23.0
-google-auth-oauthlib>=1.1.0
-google-auth-httplib2>=0.1.1
-googleapis-common-protos>=1.62.0
+google-api-python-client>=2.140.0
+google-auth>=2.35.0     # 2.29+ corrige vulnerabilidade de validacao de token
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+googleapis-common-protos>=1.63.0
 
 # ── Monitoramento de arquivos ──────────────────────────────────────────────
 watchdog>=4.0.0
 
 # ── Criptografia de credenciais ────────────────────────────────────────────
-cryptography>=41.0.0
+# cryptography >= 43 inclui correcoes de seguranca do OpenSSL
+cryptography>=43.0.0
 
 # ── Bandeja do sistema (Linux) ─────────────────────────────────────────────
 pystray>=0.19.5
 
-# ── Notificações desktop (opcional — fallback para notify-send) ────────────
+# ── Notificacoes desktop (opcional -- fallback para notify-send) ────────────
 plyer>=2.1.0
 
-# ── Utilitários ───────────────────────────────────────────────────────────
-requests>=2.31.0
+# ── Utilitarios ───────────────────────────────────────────────────────────
+# requests >= 2.32 corrige vulnerabilidade de URL (CVE-2024-35195)
+requests>=2.32.0

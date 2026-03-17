@@ -1,9 +1,19 @@
 """
 Autenticação OAuth 2.0 com o Google.
 Gerencia o fluxo de login, refresh de token e logout.
+
+Auditoria de segurança aplicada:
+- Escopos OAuth com privilégio mínimo (drive.file, não drive completo)
+- Escrita atômica do token criptografado (tempfile + os.replace)
+- Verificação de permissões do credentials.json antes de abrir
+- Exceções brutas não expostas na UI (apenas mensagem genérica)
+- Email do usuário logado em nível DEBUG, não INFO
 """
 
 import json
+import os
+import stat
+import tempfile
 import threading
 from pathlib import Path
 from typing import Callable, Optional
@@ -15,9 +25,12 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from app.utils.crypto import CryptoManager
 from app.utils.logger import get_logger
 
-# Escopos necessários para o Google Drive
+# Escopos com privilégio mínimo:
+#   drive.file  — acesso apenas a arquivos criados/abertos PELO app
+#   userinfo.email / profile / openid — identificação do usuário
+# NÃO usar 'auth/drive' (acesso total ao Drive)
 SCOPES = [
-    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
     "openid",
@@ -91,14 +104,25 @@ class GoogleAuthService:
         return self._creds if (self._creds and self._creds.valid) else None
 
     def _save_token(self) -> None:
-        """Salva token criptografado no disco."""
+        """Salva token criptografado no disco com escrita atômica."""
         if not self._creds:
             return
         token_json = self._creds.to_json()
         encrypted = self.crypto.encrypt(token_json)
-        with open(self.token_encrypted, "wb") as f:
-            f.write(encrypted)
-        import os
+        # Escrita atômica: evita arquivo parcialmente escrito em caso de crash
+        fd, tmp_path = tempfile.mkstemp(
+            dir=self.token_encrypted.parent, prefix=".token."
+        )
+        try:
+            os.chmod(tmp_path, 0o600)
+            with os.fdopen(fd, "wb") as f:
+                f.write(encrypted)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, self.token_encrypted)  # atômico no POSIX
+        except Exception:
+            os.unlink(tmp_path)
+            raise
         os.chmod(self.token_encrypted, 0o600)
         self.logger.debug("Token salvo de forma segura.")
 
@@ -115,9 +139,10 @@ class GoogleAuthService:
                 "name": user_info.get("name", ""),
                 "picture": user_info.get("picture", ""),
             }
-            self.logger.info(f"Logado como: {self._user_info['email']}")
+            # DEBUG (não INFO) para não expor e-mail nos logs regulares
+            self.logger.debug("Informações do usuário carregadas com sucesso.")
         except Exception as e:
-            self.logger.warning(f"Não foi possível carregar dados do usuário: {e}")
+            self.logger.warning("Não foi possível carregar dados do usuário.")
 
     # ── Fluxo de autenticação ──────────────────────────────────────────────
 
@@ -151,6 +176,15 @@ class GoogleAuthService:
             )
             return
 
+        # Verifica permissões do credentials.json antes de abrir
+        cred_stat = self.credentials_file.stat()
+        if cred_stat.st_mode & 0o077:
+            # Corrige automaticamente: restringe a apenas o dono
+            os.chmod(self.credentials_file, 0o600)
+            self.logger.warning(
+                "credentials.json tinha permissões abertas; corrigido para 600."
+            )
+
         try:
             self.logger.info("Iniciando autenticação OAuth 2.0...")
             flow = InstalledAppFlow.from_client_secrets_file(
@@ -168,8 +202,11 @@ class GoogleAuthService:
             self._load_user_info()
             on_success(self._user_info.get("email", "Usuário"))
         except Exception as e:
+            # Loga detalhe técnico internamente; UI recebe mensagem genérica
             self.logger.error(f"Falha na autenticação: {e}")
-            on_error(str(e))
+            on_error(
+                "Falha na autenticação. Verifique os logs para mais detalhes."
+            )
 
     def logout(self) -> None:
         """Remove credenciais e encerra sessão."""

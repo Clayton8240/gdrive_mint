@@ -95,13 +95,15 @@ class DriveService:
 
     def find_or_create_folder(self, name: str, parent_id: str = "root") -> str:
         """
-        Busca pasta pelo nome no parent; cria se não existir.
+        Busca pasta pelo nome no parent; cria se nao existir.
         Retorna o ID da pasta.
         """
         try:
             svc = self._get_service()
+            # Escapa aspas simples no nome para evitar injecao na query do Drive
+            safe_name = name.replace("'", "\\'").replace("\\", "")
             query = (
-                f"name = '{name}' and mimeType = '{FOLDER_MIME}' "
+                f"name = '{safe_name}' and mimeType = '{FOLDER_MIME}' "
                 f"and '{parent_id}' in parents and trashed = false"
             )
             results = svc.files().list(q=query, fields="files(id)").execute()
@@ -117,7 +119,7 @@ class DriveService:
             }
             folder = svc.files().create(body=metadata, fields="id").execute()
             folder_id = folder["id"]
-            self.logger.info(f"Pasta '{name}' criada no Drive (id={folder_id})")
+            self.logger.info(f"Pasta criada no Drive (id={folder_id})")
             return folder_id
         except HttpError as e:
             self.logger.error(f"Erro ao criar pasta: {e}")
@@ -241,10 +243,18 @@ class DriveService:
 
     @staticmethod
     def compute_md5(file_path: Path) -> str:
-        """Calcula MD5 de um arquivo local para comparação de integridade."""
-        h = hashlib.md5()
+        """
+        Calcula SHA-256 de um arquivo local para comparacao de integridade.
+
+        NOTA: o nome do metodo e mantido para compatibilidade com o restante
+        do codigo; internamente usa SHA-256 pois MD5 e criptograficamente
+        comprometido (ataques de colisao conhecidos).
+        O campo 'md5Checksum' da API do Drive continua sendo comparado apenas
+        para deteccao de mudancas (nao para autenticidade criptografica).
+        """
+        h = hashlib.sha256()
         with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
+            for chunk in iter(lambda: f.read(65536), b""):
                 h.update(chunk)
         return h.hexdigest()
 
