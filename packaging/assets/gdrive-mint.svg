@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="grad-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1565C0"/>
+      <stop offset="100%" style="stop-color:#0D47A1"/>
+    </linearGradient>
+    <linearGradient id="grad-top" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#42A5F5"/>
+      <stop offset="100%" style="stop-color:#1E88E5"/>
+    </linearGradient>
+    <linearGradient id="grad-left" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#66BB6A"/>
+      <stop offset="100%" style="stop-color:#43A047"/>
+    </linearGradient>
+    <linearGradient id="grad-right" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFA726"/>
+      <stop offset="100%" style="stop-color:#FB8C00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="url(#grad-bg)"/>
+
+  <!-- Google Drive-inspired triforce triangles -->
+  <!-- Top triangle (blue) -->
+  <polygon points="32,10 44,30 20,30" fill="url(#grad-top)" opacity="0.95"/>
+  <!-- Bottom-left triangle (green) -->
+  <polygon points="20,30 32,50 8,50" fill="url(#grad-left)" opacity="0.95"/>
+  <!-- Bottom-right triangle (yellow) -->
+  <polygon points="44,30 56,50 32,50" fill="url(#grad-right)" opacity="0.95"/>
+
+  <!-- Sync arrows overlay (small, top-right) -->
+  <circle cx="47" cy="17" r="9" fill="#1565C0"/>
+  <path d="M47 11 L47 23" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M43 15 L47 11 L51 15" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M43 19 L47 23 L51 19" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

@@ -1,0 +1,97 @@
+id: io.github.gdrivemint.GDriveMint
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+
+# Extensão do SDK com Python 3.12 + tkinter embutido
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.python312
+
+command: gdrive-mint
+
+build-options:
+  # Adiciona o Python da extensão ao PATH durante o build
+  append-path: /usr/lib/sdk/python312/bin
+  env:
+    PYTHONPATH: /app/lib/python3.12/site-packages
+
+finish-args:
+  # Rede (requisito para a API do Google Drive)
+  - --share=network
+  # IPC compartilhado (necessário para Tkinter/X11)
+  - --share=ipc
+  # Suporte a X11 e Wayland
+  - --socket=x11
+  - --socket=wayland
+  - --socket=fallback-x11
+  # Acesso ao diretório home (pastas de sincronização)
+  - --filesystem=home
+  # Notificações do sistema
+  - --talk-name=org.freedesktop.Notifications
+  # Bandeja do sistema (pystray)
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=com.canonical.indicator.application
+  - --talk-name=org.ayatana.indicator.application
+  # Acesso ao portal de abertura de arquivos (seletor de pasta)
+  - --talk-name=org.freedesktop.portal.Desktop
+
+modules:
+  # ── Dependências Python via pip ──────────────────────────────────────────
+  # NOTA: o arquivo 'python3-requirements.json' é gerado automaticamente por
+  # flatpak-pip-generator. Execute antes de fazer o build:
+  #   bash packaging/flatpak/generate_sources.sh
+  - name: python3-dependencies
+    buildsystem: simple
+    build-commands:
+      - pip3 install
+          --no-build-isolation
+          --prefix=/app
+          --no-deps
+          --find-links=file://${PWD}
+          ./*.whl 2>/dev/null || true
+      - pip3 install
+          --no-build-isolation
+          --prefix=/app
+          --ignore-installed
+          --no-index
+          --find-links=file://${PWD}
+          customtkinter Pillow
+          google-api-python-client google-auth google-auth-oauthlib
+          google-auth-httplib2 googleapis-common-protos
+          watchdog cryptography pystray plyer requests
+    sources:
+      # Gerado por: bash packaging/flatpak/generate_sources.sh
+      # (requer flatpak-pip-generator instalado)
+      - type: file
+        path: python3-requirements.json
+        dest-filename: python3-requirements.json
+
+  # ── Aplicação GDrive Mint ─────────────────────────────────────────────────
+  - name: gdrive-mint
+    buildsystem: simple
+    build-commands:
+      # Copia o código-fonte para /app/gdrive-mint/
+      - install -d /app/gdrive-mint
+      - cp -r . /app/gdrive-mint/
+
+      # Script de lançamento em /app/bin/gdrive-mint
+      - install -Dm755 packaging/flatpak/launcher.sh /app/bin/gdrive-mint
+
+      # Ícone
+      - install -Dm644
+          packaging/assets/gdrive-mint.svg
+          /app/share/icons/hicolor/scalable/apps/io.github.gdrivemint.GDriveMint.svg
+
+      # Entrada de menu .desktop
+      - install -Dm644
+          packaging/flatpak/io.github.gdrivemint.GDriveMint.desktop
+          /app/share/applications/io.github.gdrivemint.GDriveMint.desktop
+
+      # Metadados AppStream (obrigatório para Flathub)
+      - install -Dm644
+          packaging/flatpak/io.github.gdrivemint.GDriveMint.appdata.xml
+          /app/share/appdata/io.github.gdrivemint.GDriveMint.appdata.xml
+
+    sources:
+      - type: dir
+        path: ../..

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.gdrivemint.GDriveMint</id>
+
+  <name>GDrive Mint</name>
+  <summary>Cliente Google Drive para Linux Mint</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <description>
+    <p>
+      GDrive Mint é um cliente Google Drive moderno com interface gráfica
+      construída com CustomTkinter, desenvolvido especialmente para Linux Mint
+      e distribuições baseadas em Ubuntu.
+    </p>
+    <p>Funcionalidades principais:</p>
+    <ul>
+      <li>Sincronização bidirecional, somente upload ou somente download</li>
+      <li>Monitoramento em tempo real de alterações locais (watchdog)</li>
+      <li>Bandeja do sistema com menu de controle rápido</li>
+      <li>Notificações nativas do Linux via notify-send</li>
+      <li>Autostart configurável com o sistema</li>
+      <li>Credenciais OAuth armazenadas com criptografia Fernet (AES-128)</li>
+      <li>Tema claro e escuro</li>
+      <li>Visualização e filtro de logs em tempo real</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.gdrivemint.GDriveMint.desktop</launchable>
+
+  <url type="homepage">https://github.com/seu-usuario/gdrive_mint</url>
+  <url type="bugtracker">https://github.com/seu-usuario/gdrive_mint/issues</url>
+  <url type="vcs-browser">https://github.com/seu-usuario/gdrive_mint</url>
+
+  <developer_name>GDrive Mint Contributors</developer_name>
+
+  <provides>
+    <binary>gdrive-mint</binary>
+  </provides>
+
+  <screenshots>
+    <!-- Adicione capturas de ecrã reais antes de submeter ao Flathub -->
+    <screenshot type="default">
+      <caption>Dashboard com informações de espaço e sincronização</caption>
+      <!-- <image>https://raw.githubusercontent.com/seu-usuario/gdrive_mint/main/docs/screenshot-dashboard.png</image> -->
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="1.1.0" date="2026-03-17">
+      <description>
+        <p>Auditoria completa de segurança:</p>
+        <ul>
+          <li>Path Traversal bloqueado no download de arquivos do Drive</li>
+          <li>Symlinks ignorados durante o upload (prevenção de vazamento)</li>
+          <li>Escopo OAuth reduzido para drive.file (privilégio mínimo)</li>
+          <li>Escrita atômica de credenciais e configurações</li>
+          <li>Rotação de logs com limite de 5 MB</li>
+          <li>Filtro de dados sensíveis nos logs</li>
+          <li>SHA-256 substituindo MD5 na verificação de integridade</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.0.0" date="2026-03-15">
+      <description>
+        <p>Lançamento inicial com interface gráfica completa.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+
+  <requires>
+    <internet>always</internet>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </recommends>
+</component>

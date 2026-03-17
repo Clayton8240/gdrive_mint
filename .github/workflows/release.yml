@@ -1,0 +1,143 @@
+name: Release
+
+# Dispara quando uma tag de versão é empurrada: ex. v1.2.0
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+# Permissão para criar releases e fazer upload de assets
+permissions:
+  contents: write
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 1: Construir o pacote .deb (para Linux Mint / Ubuntu)
+  # ─────────────────────────────────────────────────────────────────────────
+  build-deb:
+    name: Construir instalador Linux Mint (.deb)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Baixar código-fonte
+        uses: actions/checkout@v4
+
+      - name: Instalar ferramentas de build
+        run: sudo apt-get install -y --no-install-recommends dpkg-dev fakeroot rsync
+
+      - name: Atualizar versão no script de build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^VERSION=.*/VERSION=\"${VERSION}\"/" packaging/build_deb.sh
+
+      - name: Construir pacote .deb
+        run: bash packaging/build_deb.sh
+
+      - name: Publicar artefato .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: Instaladores/GDrive-Mint-Linux-Mint.deb
+          if-no-files-found: error
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2: Construir o executável universal (AppImage via PyInstaller)
+  # ─────────────────────────────────────────────────────────────────────────
+  build-appimage:
+    name: Construir instalador universal (AppImage)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Baixar código-fonte
+        uses: actions/checkout@v4
+
+      - name: Instalar dependências do sistema
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            python3-tk python3-venv python3-pip
+
+      - name: Criar venv e instalar dependências
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip --quiet
+          .venv/bin/pip install -r requirements.txt --quiet
+          .venv/bin/pip install pyinstaller --quiet
+
+      - name: Construir executável com PyInstaller
+        run: bash packaging/build_appimage.sh
+
+      - name: Publicar artefato AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-bundle
+          path: Instaladores/GDrive-Mint-Universal
+          if-no-files-found: error
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3: Criar a Release no GitHub e anexar os instaladores
+  # ─────────────────────────────────────────────────────────────────────────
+  release:
+    name: Publicar Release
+    needs: [build-deb, build-appimage]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Baixar código-fonte (para ler o CHANGELOG)
+        uses: actions/checkout@v4
+
+      - name: Baixar artefato .deb
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+          path: artifacts/
+
+      - name: Baixar artefato AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: appimage-bundle
+          path: artifacts/
+
+      - name: Extrair notas da versão do CHANGELOG.md
+        id: notas
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Extrai o bloco da versão correspondente no CHANGELOG.md
+          NOTES=$(awk \
+            "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" \
+            CHANGELOG.md | sed '/^[[:space:]]*$/d')
+          if [[ -z "$NOTES" ]]; then
+            NOTES="Veja o [CHANGELOG.md](https://github.com/Clayton8240/gdrive_mint/blob/main/CHANGELOG.md) para detalhes desta versão."
+          fi
+          {
+            echo "notes<<NOTES_EOF"
+            echo "$NOTES"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Criar Release e anexar instaladores
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "GDrive Mint ${{ github.ref_name }}"
+          body: |
+            ## Instaladores
+
+            | Arquivo | Sistema |
+            |---|---|
+            | `GDrive-Mint-Linux-Mint.deb` | Linux Mint 21+ / Ubuntu 22.04+ |
+            | `GDrive-Mint-Universal` | Qualquer distribuição Linux (executável portátil) |
+
+            Consulte [Instaladores/COMO_INSTALAR.md](https://github.com/Clayton8240/gdrive_mint/blob/main/Instaladores/COMO_INSTALAR.md) para instruções de instalação.
+
+            ---
+
+            ## O que mudou nesta versão
+
+            ${{ steps.notas.outputs.notes }}
+          files: |
+            artifacts/GDrive-Mint-Linux-Mint.deb
+            artifacts/GDrive-Mint-Universal
+          draft: false
+          prerelease: false
+          make_latest: true

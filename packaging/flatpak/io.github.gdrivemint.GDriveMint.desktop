@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=GDrive Mint
+GenericName=Cliente Google Drive
+Comment=Sincronização com Google Drive para Linux Mint
+Exec=gdrive-mint
+Icon=io.github.gdrivemint.GDriveMint
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=google;drive;sync;cloud;backup;
+StartupNotify=true
+StartupWMClass=gdrive-mint

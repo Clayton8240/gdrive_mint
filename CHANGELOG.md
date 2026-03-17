@@ -80,6 +80,6 @@ Esta versão é dedicada exclusivamente a correções de segurança identificada
 - Script `install.sh` para instalação automática no **Linux Mint**.
 - `README.md` com guia completo de configuração do Google Cloud Console.
 
-[Não lançado]: https://github.com/seu-usuario/gdrive_mint/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/seu-usuario/gdrive_mint/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/seu-usuario/gdrive_mint/releases/tag/v1.0.0
+[Não lançado]: https://github.com/Clayton8240/gdrive_mint/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Clayton8240/gdrive_mint/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/Clayton8240/gdrive_mint/releases/tag/v1.0.0

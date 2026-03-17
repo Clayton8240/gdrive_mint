@@ -31,6 +31,15 @@ build/
 *.egg
 MANIFEST
 wheels/
+packaging/staging/
+packaging/flatpak/.flatpak-build/
+packaging/flatpak/.flatpak-repo/
+packaging/flatpak/python3-requirements.json
+
+# Binários gerados em Instaladores/ (não versionar — são artefatos de build)
+# O arquivo COMO_INSTALAR.md dentro da pasta permanece versionado.
+Instaladores/*.deb
+Instaladores/GDrive-Mint-Universal
 
 # ── Testes e cobertura ────────────────────────────────────────────────────
 .pytest_cache/
