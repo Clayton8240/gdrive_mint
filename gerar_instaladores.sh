@@ -2,19 +2,17 @@
 # =============================================================================
 #  GDrive Mint — Gerar instaladores para usuários finais
 # =============================================================================
-#  Constrói o pacote .deb e o bundle Flatpak e os coloca em Instaladores/
+#  Constrói o pacote .deb e o executável universal (AppImage) e os coloca em Instaladores/
 #  com nomes simples e claros.
 #
 #  Pré-requisitos (instalar uma vez):
-#    sudo apt install dpkg-dev fakeroot rsync flatpak flatpak-builder
-#    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-#    flatpak install flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
-#    flatpak install flathub org.freedesktop.Sdk.Extension.python312//24.08
+#    sudo apt install dpkg-dev fakeroot rsync
+#    python3 -m pip install pyinstaller   # ou instalar no venv
 #
 #  Uso:
-#    bash gerar_instaladores.sh             # gera .deb e .flatpak
-#    bash gerar_instaladores.sh --so deb    # apenas .deb
-#    bash gerar_instaladores.sh --so flatpak # apenas .flatpak
+#    bash gerar_instaladores.sh               # gera .deb + executável universal
+#    bash gerar_instaladores.sh --so deb      # apenas .deb
+#    bash gerar_instaladores.sh --so appimage # apenas executável universal
 # =============================================================================
 
 set -euo pipefail
@@ -28,19 +26,19 @@ step()  { echo -e "\n${BOLD}>>> $1${NC}"; }
 error() { echo -e "${RED}[✗] ERRO:${NC} $1"; exit 1; }
 
 BUILD_DEB=true
-BUILD_FLATPAK=true
+BUILD_APPIMAGE=true
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --so)
             case "$2" in
-                deb)     BUILD_FLATPAK=false ;;
-                flatpak) BUILD_DEB=false ;;
-                *) error "Valor inválido para --so: '$2'. Use 'deb' ou 'flatpak'." ;;
+                deb)      BUILD_APPIMAGE=false ;;
+                appimage) BUILD_DEB=false ;;
+                *) error "Valor inválido para --so: '$2'. Use 'deb' ou 'appimage'." ;;
             esac
             shift 2 ;;
         --help|-h)
-            echo "Uso: $0 [--so deb|flatpak]"
+            echo "Uso: $0 [--so deb|appimage]"
             exit 0 ;;
         *) error "Opção desconhecida: $1" ;;
     esac
@@ -67,8 +65,8 @@ if $BUILD_DEB; then
     info "Instalador .deb pronto: Instaladores/GDrive-Mint-Linux-Mint.deb"
 fi
 
-# ── AppImage (úniversal) ────────────────────────────────────────────────────
-if $BUILD_FLATPAK; then
+# ── AppImage (universal) ─────────────────────────────────────────────────────
+if $BUILD_APPIMAGE; then
     step "Construindo instalador universal (AppImage)..."
 
     if [[ ! -d "${ROOT_DIR}/.venv" ]]; then
@@ -91,7 +89,7 @@ if $BUILD_DEB && [[ -f "${DEST}/GDrive-Mint-Linux-Mint.deb" ]]; then
     SIZE=$(du -sh "${DEST}/GDrive-Mint-Linux-Mint.deb" | awk '{print $1}')
     printf "║  %-55s║\n" "GDrive-Mint-Linux-Mint.deb  ($SIZE)"
 fi
-if $BUILD_FLATPAK && [[ -f "${DEST}/GDrive-Mint-Universal" ]]; then
+if $BUILD_APPIMAGE && [[ -f "${DEST}/GDrive-Mint-Universal" ]]; then
     SIZE=$(du -sh "${DEST}/GDrive-Mint-Universal" | awk '{print $1}')
     printf "║  %-55s║\n" "GDrive-Mint-Universal  ($SIZE)"
 fi

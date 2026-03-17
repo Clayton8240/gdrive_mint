@@ -857,28 +857,26 @@ O script cria:
 - `postinst`: cria venv em `/opt/gdrive-mint/.venv`, instala deps, ajusta permissões
 - `prerm` / `postrm`: limpeza ao desinstalar
 
-### Flatpak
+### Executável universal (AppImage via PyInstaller)
 
 ```bash
-# Pré-requisito: flatpak-builder
-sudo apt install flatpak-builder
+# Pré-requisito: python3-tk do sistema
+sudo apt install python3-tk
 
-# Gerar fontes pip (uma vez, ou quando requirements.txt mudar)
-bash packaging/flatpak/generate_sources.sh
-
-# Construir
-bash packaging/flatpak/build_flatpak.sh
-
-# Construir, instalar localmente e criar bundle
-bash packaging/flatpak/build_flatpak.sh --install --bundle
+# Construir (gera Instaladores/GDrive-Mint-Universal)
+bash packaging/build_appimage.sh
 ```
 
-ID da aplicação: `io.github.gdrivemint.GDriveMint`
+O binário inclui Python 3.12 e todas as dependências. Para executar:
+
+```bash
+chmod +x GDrive-Mint-Universal
+./GDrive-Mint-Universal
+```
 
 ### Checklist de release
 
 - [ ] Atualizar versão em `packaging/build_deb.sh` (`VERSION=X.Y.Z`)
-- [ ] Atualizar versão em `packaging/flatpak/io.github.gdrivemint.GDriveMint.appdata.xml`
 - [ ] Atualizar `CHANGELOG.md` (seguir [Keep a Changelog](https://keepachangelog.com))
 - [ ] Atualizar badge de versão no `README.md`
 - [ ] Rodar `python3 -m py_compile` em todos os arquivos `.py`

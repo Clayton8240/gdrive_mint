@@ -1,7 +1,7 @@
 # Packaging — GDrive Mint
 
 Este diretório contém os ficheiros necessários para criar pacotes instaláveis do GDrive Mint.
-Dois formatos são suportados: **pacote .deb** (nativo do Linux Mint/Ubuntu) e **Flatpak** (multiplataforma, com sandbox).
+Dois formatos são distribuídos: **pacote .deb** (nativo do Linux Mint/Ubuntu) e **executável universal** (AppImage via PyInstaller, funciona em qualquer distro Linux).
 
 ---
 
@@ -9,21 +9,17 @@ Dois formatos são suportados: **pacote .deb** (nativo do Linux Mint/Ubuntu) e *
 
 ```
 packaging/
-├── build_deb.sh                  # Gera o pacote .deb
+├── build_deb.sh          # Gera o pacote .deb
+├── build_appimage.sh     # Gera o executável universal (PyInstaller)
 ├── assets/
-│   └── gdrive-mint.svg           # Ícone da aplicação
-└── flatpak/
-    ├── io.github.gdrivemint.GDriveMint.yml          # Manifesto Flatpak
-    ├── io.github.gdrivemint.GDriveMint.appdata.xml  # Metadados AppStream
-    ├── io.github.gdrivemint.GDriveMint.desktop      # Entrada de menu
-    ├── launcher.sh                                   # Script de lançamento
-    ├── generate_sources.sh                           # Gera fontes pip para Flatpak
-    └── build_flatpak.sh                              # Constrói o Flatpak
+│   └── gdrive-mint.svg   # Ícone da aplicação
+└── flatpak/              # Arquivos mantidos para referência futura
+    └── ...               # (não usado na distribuição atual)
 ```
 
 ---
 
-## Opção 1 — Pacote .deb *(recomendado para Linux Mint)*
+## Opção 1 — Pacote .deb *(recomendado para Linux Mint / Ubuntu)*
 
 O `.deb` é a forma mais familiar para utilizadores do Linux Mint: basta fazer **duplo clique** no ficheiro para instalar pelo Gerenciador de Pacotes.
 
@@ -43,7 +39,7 @@ bash packaging/build_deb.sh
 bash packaging/build_deb.sh --version 1.1.0 --arch amd64
 ```
 
-O ficheiro `gdrive-mint_1.1.0_amd64.deb` será criado em `packaging/`.
+O ficheiro `GDrive-Mint-Linux-Mint.deb` será criado em `Instaladores/`.
 
 ### O que o instalador faz
 
@@ -58,7 +54,7 @@ O ficheiro `gdrive-mint_1.1.0_amd64.deb` será criado em `packaging/`.
 
 ```bash
 # Via terminal
-sudo dpkg -i packaging/gdrive-mint_1.1.0_amd64.deb
+sudo dpkg -i Instaladores/GDrive-Mint-Linux-Mint.deb
 
 # Resolver dependências (se necessário)
 sudo apt-get install -f
@@ -75,88 +71,60 @@ sudo apt purge  gdrive-mint        # remove também os dados em /opt
 
 ---
 
-## Opção 2 — Flatpak *(portável, com sandbox)*
+## Opção 2 — Executável universal *(AppImage via PyInstaller)*
 
-O Flatpak oferece isolamento completo da aplicação do sistema, com todas as dependências embutidas. É a melhor opção para distribuição em múltiplas distribuições Linux.
+Um único arquivo binário portátil que funciona em qualquer distribuição Linux sem instalar nada. Todas as dependências (Python 3.12, CustomTkinter, Google API, etc.) estão embutidas.
 
-### Pré-requisitos do sistema
-
-```bash
-# Instalar ferramentas Flatpak
-sudo apt install flatpak flatpak-builder
-
-# Adicionar repositório Flathub
-flatpak remote-add --if-not-exists flathub \
-    https://flathub.org/repo/flathub.flatpakrepo
-
-# Instalar o runtime e SDK necessários
-flatpak install flathub \
-    org.freedesktop.Platform//24.08 \
-    org.freedesktop.Sdk//24.08 \
-    org.freedesktop.Sdk.Extension.python312//24.08
-```
-
-### Passo 1 — Gerar fontes pip
-
-O Flatpak precisa de baixar os pacotes Python offline (no momento do build).
-Execute o gerador de fontes **uma vez** (e sempre que o `requirements.txt` mudar):
+### Pré-requisitos
 
 ```bash
-bash packaging/flatpak/generate_sources.sh
+# python3-tk é necessário para o build (tkinter não está no venv)
+sudo apt install python3-tk
 ```
 
-Isto cria `packaging/flatpak/python3-requirements.json` com os hashes verificados de todos os pacotes pip.
-
-### Passo 2 — Construir o Flatpak
+### Construir
 
 ```bash
-# Build simples (para teste)
-bash packaging/flatpak/build_flatpak.sh
-
-# Build + instalação local
-bash packaging/flatpak/build_flatpak.sh --install
-
-# Build + gerar bundle .flatpak para distribuição
-bash packaging/flatpak/build_flatpak.sh --bundle
+# A partir do diretório raiz do projeto
+bash packaging/build_appimage.sh
 ```
 
-### Instalar o bundle .flatpak
+O ficheiro `GDrive-Mint-Universal` será criado em `Instaladores/`.
+
+### Usar o executável
 
 ```bash
-flatpak install --user packaging/flatpak/io.github.gdrivemint.GDriveMint.flatpak
+# Dar permissão de execução (apenas uma vez)
+chmod +x GDrive-Mint-Universal
+
+# Executar
+./GDrive-Mint-Universal
 ```
 
-### Executar
+Ou clique com o botão direito no Gerenciador de Arquivos → **Propriedades → Permissões → Permitir executar como programa** → duplo clique.
+
+---
+
+## Gerar ambos de uma vez
 
 ```bash
-flatpak run io.github.gdrivemint.GDriveMint
+bash gerar_instaladores.sh             # .deb + universal
+bash gerar_instaladores.sh --so deb    # apenas .deb
+bash gerar_instaladores.sh --so appimage # apenas universal
 ```
-
-### Desinstalar
-
-```bash
-flatpak --user uninstall io.github.gdrivemint.GDriveMint
-```
-
-### Publicar no Flathub *(opcional)*
-
-1. Edite os metadados `io.github.gdrivemint.GDriveMint.appdata.xml`:
-   - Substitua o `id`, URL do repositório e nome do desenvolvedor
-   - Adicione capturas de ecrã reais
-2. Abra um PR no repositório [flathub/flathub](https://github.com/flathub/flathub) seguindo o [guia oficial](https://docs.flathub.org/docs/for-app-authors/submission).
 
 ---
 
 ## Comparativo
 
-| | `.deb` | Flatpak |
-|--|--------|---------|
-| **Instalação** | Duplo clique | `flatpak install` |
-| **Dependências** | Venv criado no postinst | Embutidas no bundle |
-| **Isolamento** | Nenhum | Sandbox completa |
-| **Distribuição** | Linux Mint / Ubuntu | Qualquer distro com Flatpak |
-| **Tamanho** | ~10 MB + deps via pip | ~150–200 MB (runtime incluído) |
-| **Flathub** | Não aplicável | Sim |
+| | `.deb` | Executável universal |
+|--|--------|---------------------|
+| **Instalação** | Duplo clique no Gerenciador de Pacotes | Dar permissão + duplo clique |
+| **Dependências** | Venv criado no postinst | Embutidas no binário |
+| **Isolamento** | Nenhum | Nenhum (processo nativo) |
+| **Distribuição** | Linux Mint / Ubuntu | Qualquer distro Linux |
+| **Tamanho** | ~52 KB (deps instaladas via pip) | ~44 MB (tudo incluso) |
+| **Necessita instalação** | Sim (`dpkg`) | Não |
 
-Para utilizadores do **Linux Mint**, o `.deb` é a opção mais simples e integrada.
-O **Flatpak** é preferível se pretender distribuir para outras distribuições.
+Para utilizadores do **Linux Mint**, o `.deb` é a opção mais simples.
+Para **qualquer outra distro**, use o executável universal.

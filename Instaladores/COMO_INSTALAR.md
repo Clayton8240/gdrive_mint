@@ -9,7 +9,7 @@ Acesse a página de releases e baixe o arquivo para o seu sistema:
 | Arquivo | Para quem? |
 |---|---|
 | `GDrive-Mint-Linux-Mint.deb` | Linux Mint ou Ubuntu |
-| `GDrive-Mint-Universal.flatpak` | Qualquer outra distribuição Linux |
+| `GDrive-Mint-Universal` | Qualquer outra distribuição Linux |
 
 ---
 

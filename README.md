@@ -48,7 +48,7 @@ bash packaging/build_deb.sh
 sudo dpkg -i packaging/gdrive-mint_1.1.0_amd64.deb
 ```
 
-Ver [packaging/README.md](packaging/README.md) para mais detalhes, incluindo a opção Flatpak.
+Ver [packaging/README.md](packaging/README.md) para mais detalhes.
 
 ### Opção B — Script de instalação
 
@@ -124,10 +124,11 @@ gdrive_mint/
 ├── main.py                        # Ponto de entrada + verificações de segurança
 ├── requirements.txt
 ├── install.sh                     # Instalador automático (terminal)
-├── packaging/                     # Geração de .deb e Flatpak
+├── packaging/                     # Geração de .deb e executável universal
 │   ├── build_deb.sh
+│   ├── build_appimage.sh
 │   ├── assets/gdrive-mint.svg
-│   └── flatpak/
+│   └── flatpak/                   # Mantido para referência futura
 ├── app/
 │   ├── core/
 │   │   ├── sync_engine.py         # Orquestrador de sincronização
@@ -221,5 +222,5 @@ MIT License — Uso livre para fins pessoais e comerciais.
 
 - [Guia para Desenvolvedores](docs/CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
-- [Packaging (.deb / Flatpak)](packaging/README.md)
+- [Packaging (.deb e executável universal)](packaging/README.md)
 
